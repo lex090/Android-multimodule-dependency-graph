@@ -13,7 +13,7 @@ def get_graph(path, gradle_kotlin_dsl):
     net.inherit_edge_colors(False)
     modules = dict()
     extension = '.kts' if gradle_kotlin_dsl else ''
-    gradle_settings_file_name = 'settings.gradle' + extension
+    gradle_settings_file_name = 'settings.gradle'
     gradle_build_file_name = 'build.gradle' + extension
 
     def retrieve_project_modules(root, files):
@@ -23,10 +23,9 @@ def get_graph(path, gradle_kotlin_dsl):
             file = open(root_file, 'r')
             lines = file.readlines()
             for line in lines:
-                if stand(line).__contains__("\':"):
-                    ln = get_between(stand(line), '\'', '\'')
-                    modules[ln] = []
-                    net.add_node(ln, shape='circle', mass=7)
+                ln = stand(line).replace('\n', '')
+                modules[ln] = []
+                net.add_node(ln, shape='circle', mass=7)
 
     def add_module_dependencies(root, files):
         if gradle_build_file_name in files:
@@ -35,13 +34,15 @@ def get_graph(path, gradle_kotlin_dsl):
             file = open(root_file, 'r')
             lines = file.readlines()
             current_module = ""
-            root_formatted = str(root).replace(os.sep, ':').replace(".", ":")
+            root_formatted = str(root).replace(os.sep, ':').replace(".", ":").replace("_", "")
             for module in modules.keys():
+                print(module)
                 if root_formatted.__contains__(module):
                     current_module = module
             for line in lines:
-                if stand(line).__contains__("implementation"):
-                    ln = get_between(stand(line), '\'', '\'')
+                if stand(line).__contains__("implementation") or stand(line).__contains__("api"):
+                    lastIndex = stand(line).rfind(':')
+                    ln = stand(line)[lastIndex + 1:len(stand(line))].replace(")", "").replace("\n", "")
                     for module in modules:
                         if ln == module:
                             modules[current_module].append(module)
@@ -49,6 +50,7 @@ def get_graph(path, gradle_kotlin_dsl):
     def get_circular_dependency_modules() -> []:
         circular_dependency_modules = []
         filtered_modules = filter_dict(modules, lambda elem: len(elem[1]) > 0).items()
+        print(filtered_modules)
         for module, module_dependencies in filtered_modules:
 
             def search_circular_dependencies(scope_dependencies: []):
@@ -107,5 +109,5 @@ if __name__ == '__main__':
         kotlin_dsl = False
     else:
         raise FileNotFoundError("Unable to find Gradle settings file")
-    graph = get_graph(project_path, kotlin_dsl)
+    graph = get_graph(project_path, True)
     graph.show('index.html')
